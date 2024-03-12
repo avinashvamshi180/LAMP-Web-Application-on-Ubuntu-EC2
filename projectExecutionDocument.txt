@@ -1,0 +1,114 @@
+
+1. Launch an EC2 Ubuntu Instance and log inside the EC2 using the key file.
+
+2. On the command terminal, execute the following
+sudo apt update #this command ensures that the system has the latest information about the available packages. But it doesn't install or upgrade any software packages.
+sudo apt upgrade #this command is used to upgrade the installed packages on your system to their latest versions. 
+
+
+3. Given that our system has very low RAM, we use swapfile
+
+sudo fallocate -l 4G /swapfile #We will create the new swap file in root (/) using fallocate and 
+sudo chmod 600 /swapfile # then ensure it is not generally available to users to view using chmod
+https://www.togaware.com/linux/survivor/swap-file.html
+
+sudo mkswap /swapfile #converts file to swap format
+sudo swapon /swapfile #enable swap on the file. this will tell the operating system to use the file for swap with the swapon command
+sudo swapon --show #to check whether swapon is working or not
+
+# To make sure the swap is used after a reboot of the computer, by adding a line to /etc/fstab that results in swapon -a to add the new swapfile to swap space
+sudo cp /etc/fstab /etc/fstab.bak
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+sudo swapoff /swapfile #If you wanted to remove the swap file from usage simply use swapoffs    u
+free #to check the amount of free memory
+df -h #to check the amount of disk space used
+
+4. Then install the lamp stack
+sudo apt install php apache2 mysql-server phpmyadmin #to install the lamp stack
+
+After the installation is done, verify it by opening the default web page of apache using the ip address of the server and log inside the mysql database using mysql command.
+
+5. Attach an Elastic IP Address to the instance, for DNS resolution and for a static IP, and add the ip of EC2 as A record of the DNS at registrar
+
+6. Create our web app folder inside the /var/www/ directory ex: phpCrudApp
+
+7. Upload all of our code files to the above directory.
+
+8. Then create a conf file for apache2 and add the following lines
+
+vim /etc/apache2/sites-available/phpCrudApp.conf
+
+<VirtualHost *:80>
+ServerName avinashvamshih.online
+ServerAlias avinashvamshih.online
+
+DocumentRoot /var/www/phpCrudApp
+</VirtualHost>
+
+Once the file is saved, then enable the site, using 
+a2ensite phpCrudApp #enable the site 
+
+systemctl apache2 restart (or) service apache2 reload  #restart the apache2 service.
+
+
+9. Connect to the mysql database using the mysql command on terminal
+mysql>
+then excute the following mysql commands
+create user admin@localhost IDENTIFIED BY 'admins_password'; #creating mysql user 'admin' who is identified by the password 'admins_password'
+GRANT ALL PRIVILEGES ON *.* TO admin@localhost; #grants full permissions for the user admin on all the databases within the sql - *.* indicates all the databases
+
+10. When the above commands are executed successfully, then you can log into the mysql using phpmyadmin from the browser, for that to work you need to add the following to /etc/apache2/apache2.conf file at the last
+
+Include /etc/phpmyadmin/apache.conf
+
+save the file and restart the apache2 service
+systemctl apache2 restart
+
+11. log into the mysql database from the browser using phpmyadmin and username/password which we created earlier, then create a separate database phpCrudApp from there
+
+12. create a sample table employees from the terminal in the phpCrudApp database
+
+13. Then edit the config.php file in our web app folder, with the already created values
+
+14. Once done, type the domain name in the browser, if everthing is configured properly we should be able to access the app.
+
+15. Now we will use certbot for ssl 
+
+Certbot Installation:
+
+sudo apt install certbot (or) sudo apt install snapd #installs certbot application
+sudo certbot certonly #installs only the certificates from letsencrypt
+
+after a series of questions/answers the certificate will be installed in the designated folder (in this case our web app root folder phpmyadmin)
+
+create a phpCrudApp-ssl.config by copying the content from default-ssl.config file and modify the contents of phpCrudApp-ssl.config according to your requirements
+chnage values of
+DocumentRoot - /var/www/phpCrudApp
+SSLCertificateFile      /etc/letsencrypt/live/avinashvamshih.online/cert.pem
+SSLCertificateKeyFile /etc/letsencrypt/live/avinashvamshih.online/privkey.pem
+
+
+a2ensite phpCrudApp-ssl.conf #enables the ssl cert file for the site
+service apache2 reload #reloads the apache2 service
+
+then enable
+a2enmod ssl #command for enabling the ssl service
+service apache2 reload #reloads the apache2 service
+
+
+sudo certbot renew --dry-run #checks through a dry run whether the certificates renewals automatically or not after expiry
+
+17. To redirect http to https, create a .htaccess file in the web app folder and add the following lines and restart the apache2 server
+
+RewriteEngine On
+RewriteCond %{SERVER_PORT} 80
+RewriteRule ^(.*)$ https://avinashvamshih.online/$1 [R,L]
+ 
+RewriteEngine On
+RewriteCond %{SERVER_PORT} 80
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R,L]
+
+
+
+
